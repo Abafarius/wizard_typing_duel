@@ -7,13 +7,14 @@ from dataclasses import dataclass
 
 import pygame
 
-# Wizard Typing Duel — v0.3.2 UX & Clarity Patch
+# Wizard Typing Duel — v0.3.3 Responsive UI Patch
 # Controls:
 # - Menu: 1 = Easy, 2 = Normal, 3 = Hard
 # - Type spell words before they hit the wizard.
 # - Playing: 1 = Barrier, 2 = Slow Time, 3 = Arcane Blast
 # - Esc = pause menu
 # - F1 = help / controls
+# - F11 = fullscreen / windowed
 # - Pause menu: Continue, Restart, Main Menu, Quit Game
 # - Upgrade screen: A / S / D or mouse click = choose upgrade
 # - Backspace = delete input, Enter = clear input
@@ -224,8 +225,17 @@ class Spell:
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("Wizard Typing Duel v0.3.2")
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Wizard Typing Duel v0.3.3")
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+        self.window_w, self.window_h = self.screen.get_size()
+        self.scale = 1.0
+        self.viewport_x = 0
+        self.viewport_y = 0
+        self.viewport_w = WIDTH
+        self.viewport_h = HEIGHT
+        self.fullscreen = False
+        self.last_window_size = (WIDTH, HEIGHT)
+        self.update_viewport()
         self.clock = pygame.time.Clock()
         self.font_big = pygame.font.SysFont("consolas", 42, bold=True)
         self.font = pygame.font.SysFont("consolas", 26, bold=True)
@@ -234,6 +244,42 @@ class Game:
         self.selected_difficulty = "normal"
         self.best_score = self.load_best_score()
         self.reset(keep_menu=True)
+
+    def update_viewport(self):
+        self.window_w, self.window_h = self.screen.get_size()
+        self.scale = min(self.window_w / WIDTH, self.window_h / HEIGHT)
+        self.scale = max(0.1, self.scale)
+        self.viewport_w = max(1, int(WIDTH * self.scale))
+        self.viewport_h = max(1, int(HEIGHT * self.scale))
+        self.viewport_x = (self.window_w - self.viewport_w) // 2
+        self.viewport_y = (self.window_h - self.viewport_h) // 2
+
+    def screen_to_world(self, pos):
+        sx, sy = pos
+        if (
+            sx < self.viewport_x
+            or sy < self.viewport_y
+            or sx > self.viewport_x + self.viewport_w
+            or sy > self.viewport_y + self.viewport_h
+        ):
+            return None
+        wx = int((sx - self.viewport_x) / self.scale)
+        wy = int((sy - self.viewport_y) / self.scale)
+        return max(0, min(WIDTH - 1, wx)), max(0, min(HEIGHT - 1, wy))
+
+    def mouse_world_pos(self):
+        pos = self.screen_to_world(pygame.mouse.get_pos())
+        return pos if pos is not None else (-9999, -9999)
+
+    def toggle_fullscreen(self):
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode(self.last_window_size, pygame.RESIZABLE)
+            self.fullscreen = False
+        else:
+            self.last_window_size = self.screen.get_size()
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.fullscreen = True
+        self.update_viewport()
 
     def save_path(self):
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), SAVE_FILE)
@@ -534,7 +580,7 @@ class Game:
         self.reset(keep_menu=False)
 
     def draw_panel_button(self, surf, rect, title, subtitle="", selected=False, disabled=False, accent=(145, 120, 220), small=False):
-        mouse = pygame.mouse.get_pos()
+        mouse = self.mouse_world_pos()
         hover = rect.collidepoint(mouse) and not disabled
         tick = pygame.time.get_ticks() * 0.001
         lift = -4 if hover else 0
@@ -568,7 +614,9 @@ class Game:
     def handle_mouse(self, event):
         if event.button != 1:
             return
-        pos = event.pos
+        pos = self.screen_to_world(event.pos)
+        if pos is None:
+            return
 
         # Click anywhere on the help overlay to close it.
         if self.show_help:
@@ -633,6 +681,10 @@ class Game:
                 return
 
     def handle_key(self, event):
+        if event.key == pygame.K_F11:
+            self.toggle_fullscreen()
+            return
+
         if event.key == pygame.K_F1:
             self.show_help = not self.show_help
             return
@@ -988,7 +1040,7 @@ class Game:
 
     def draw_menu(self, surf):
         title = self.font_big.render("WIZARD TYPING DUEL", True, (245, 230, 170))
-        version = self.font_small.render("v0.3.2 UX & Clarity Patch", True, (180, 230, 255))
+        version = self.font_small.render("v0.3.3 Responsive UI Patch", True, (180, 230, 255))
         subtitle = self.font.render("Type spell words. Spend mana. Survive the duel.", True, (210, 210, 245))
         surf.blit(title, title.get_rect(center=(WIDTH // 2, 104)))
         surf.blit(version, version.get_rect(center=(WIDTH // 2, 148)))
@@ -1019,7 +1071,7 @@ class Game:
 
         self.draw_panel_button(surf, self.start_button_rect(), "START DUEL", "Space / Enter / Click", accent=(255, 220, 120))
         tip1 = self.font_small.render("Mouse: menus, upgrades, abilities", True, (150, 145, 190))
-        tip2 = self.font_small.render("Esc: pause menu · F1: help · 1/2/3: abilities", True, (150, 145, 190))
+        tip2 = self.font_small.render("Esc: pause · F1: help · F11: fullscreen", True, (150, 145, 190))
         surf.blit(tip1, tip1.get_rect(center=(WIDTH // 2, 468)))
         surf.blit(tip2, tip2.get_rect(center=(WIDTH // 2, 492)))
 
@@ -1034,7 +1086,7 @@ class Game:
         card_rects = self.upgrade_card_rects()
         for i, upgrade in enumerate(self.upgrade_choices):
             rect = card_rects[i]
-            hover = rect.collidepoint(pygame.mouse.get_pos())
+            hover = rect.collidepoint(self.mouse_world_pos())
             draw_rect = rect.move(0, -6 if hover else 0)
             tick = pygame.time.get_ticks() * 0.001
             border = (255, 220, 120) if hover else (145, 120, 220)
@@ -1117,6 +1169,7 @@ class Game:
             "Controls:",
             "Esc - pause menu",
             "F1 - close this help",
+            "F11 - fullscreen / windowed",
             "Backspace - delete character",
             "Enter - clear input",
         ]
@@ -1142,6 +1195,7 @@ class Game:
         offset_x = random.randint(-5, 5) if self.shake > 0 else 0
         offset_y = random.randint(-4, 4) if self.shake > 0 else 0
 
+        self.update_viewport()
         world = pygame.Surface((WIDTH, HEIGHT))
         self.draw_background(world)
         self.draw_wizard(world)
@@ -1173,7 +1227,26 @@ class Game:
         if self.show_help:
             self.draw_help(world)
 
-        self.screen.blit(world, (offset_x, offset_y))
+        if self.shake > 0:
+            shaken_world = pygame.Surface((WIDTH, HEIGHT))
+            shaken_world.fill((12, 10, 28))
+            shaken_world.blit(world, (offset_x, offset_y))
+            world = shaken_world
+
+        self.screen.fill((4, 3, 12))
+        if self.viewport_w == WIDTH and self.viewport_h == HEIGHT:
+            scaled_world = world
+        else:
+            scaled_world = pygame.transform.smoothscale(world, (self.viewport_w, self.viewport_h))
+        self.screen.blit(scaled_world, (self.viewport_x, self.viewport_y))
+
+        # Thin frame around the scaled game area helps on ultrawide or tall windows.
+        pygame.draw.rect(
+            self.screen,
+            (55, 45, 95),
+            (self.viewport_x, self.viewport_y, self.viewport_w, self.viewport_h),
+            max(1, int(2 * self.scale)),
+        )
         pygame.display.flip()
 
     def run(self):
@@ -1183,6 +1256,11 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                elif event.type == pygame.VIDEORESIZE and not self.fullscreen:
+                    new_w = max(640, event.w)
+                    new_h = max(360, event.h)
+                    self.screen = pygame.display.set_mode((new_w, new_h), pygame.RESIZABLE)
+                    self.update_viewport()
                 elif event.type == pygame.KEYDOWN:
                     self.handle_key(event)
                 elif event.type == pygame.MOUSEBUTTONDOWN:

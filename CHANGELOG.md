@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.3 — Responsive UI Patch
+
+### Added
+- Resizable game window.
+- Resolution-independent rendering through a fixed 960x540 virtual canvas.
+- Automatic scaling with preserved 16:9 aspect ratio.
+- Letterboxing/pillarboxing for unusual monitor shapes.
+- Correct mouse input mapping after resizing.
+- F11 fullscreen/windowed toggle.
+
+### Changed
+- Final rendering now scales the virtual game surface to the actual window.
+- Hover and click logic now use virtual game coordinates instead of raw screen coordinates.
+- Menu help text now mentions F11 fullscreen.
+
 ## v0.3.2 — UX & Clarity Patch
 
 ### Added

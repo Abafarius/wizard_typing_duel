@@ -1,4 +1,4 @@
-# Wizard Typing Duel v0.3.2
+# Wizard Typing Duel v0.3.3
 
 A tiny old-school pygame typing duel prototype.
 
@@ -22,6 +22,7 @@ python wizard_typing_duel.py
 - `3` — Arcane Blast: hits several spells on screen.
 - `Esc` — pause menu.
 - `F1` — help / controls.
+- `F11` — fullscreen / windowed.
 - `Backspace` — delete last typed character.
 - `Enter` — clear input.
 
@@ -42,4 +43,13 @@ Keyboard shortcuts in pause menu:
 
 ## Notes
 
-This is still a prototype. The goal of v0.3.2 is clarity: the player should understand abilities, pause menu, restart, and help without reading the source code.
+This is still a prototype. The goal of v0.3.3 is clarity: the player should understand abilities, pause menu, restart, and help without reading the source code.
+
+
+## Display
+
+- The window is resizable.
+- The game keeps a fixed 16:9 virtual canvas and scales it to the current window.
+- Black/ dark borders may appear on ultrawide or tall monitors to preserve proportions.
+- Mouse clicks are converted correctly after resizing.
+- `F11` toggles fullscreen/windowed mode.
