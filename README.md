@@ -1,4 +1,16 @@
-# Wizard Typing Duel v0.3.3
+# Wizard Typing Duel v0.4.0
+
+A tiny old-school magical typing duel made with Python + pygame.
+
+## What changed in v0.4.0
+
+- Full visual UI overhaul inspired by the polished mockups.
+- Better main menu with stronger title, difficulty cards, footer controls and clear start button.
+- Better gameplay HUD with structured HP, score, combo, mana, ability cards and input command bar.
+- Ability buttons clearly show hotkeys `1`, `2`, `3`, effect and mana cost.
+- Spell lanes moved lower so the HUD no longer fights with incoming spells.
+- Fullscreen scaling now uses crisp pixel scaling instead of blurry smooth scaling.
+
 
 A tiny old-school pygame typing duel prototype.
 
@@ -43,7 +55,7 @@ Keyboard shortcuts in pause menu:
 
 ## Notes
 
-This is still a prototype. The goal of v0.3.3 is clarity: the player should understand abilities, pause menu, restart, and help without reading the source code.
+This is still a prototype. The goal of v0.4.0 is clarity: the player should understand abilities, pause menu, restart, and help without reading the source code.
 
 
 ## Display

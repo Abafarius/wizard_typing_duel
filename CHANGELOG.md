@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0 — Visual UI Overhaul
+
+### Added
+- Polished main menu layout inspired by the generated UI mockup.
+- Redesigned gameplay HUD with clear stat panels, mana bar, ability cards, and command input bar.
+- Clear ability card hotkeys and descriptions.
+- Decorative gem/star UI elements and footer key help row.
+
+### Changed
+- Fullscreen rendering now uses crisp pixel scaling instead of smooth scaling to avoid blurry/shaky UI.
+- Spell lanes moved downward to keep incoming spell words away from the top HUD.
+- Menu and HUD spacing, typography, hierarchy, and panel styling were reworked.
+
 ## v0.3.3 — Responsive UI Patch
 
 ### Added

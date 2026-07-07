@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pygame
 
-# Wizard Typing Duel — v0.3.3 Responsive UI Patch
+# Wizard Typing Duel — v0.4.0 Visual UI Overhaul
 # Controls:
 # - Menu: 1 = Easy, 2 = Normal, 3 = Hard
 # - Type spell words before they hit the wizard.
@@ -104,7 +104,7 @@ MANA_WORDS = [
     "ether", "clarity", "channel", "flow", "charge", "blue flame", "inner spark",
 ]
 
-LANES = [95, 145, 195, 245, 295, 345, 395]
+LANES = [245, 285, 325, 365]
 
 SPELL_COLORS = {
     "normal": ((90, 70, 180), (185, 140, 255), (245, 235, 255)),
@@ -225,7 +225,7 @@ class Spell:
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("Wizard Typing Duel v0.3.3")
+        pygame.display.set_caption("Wizard Typing Duel v0.4.0")
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         self.window_w, self.window_h = self.screen.get_size()
         self.scale = 1.0
@@ -237,10 +237,12 @@ class Game:
         self.last_window_size = (WIDTH, HEIGHT)
         self.update_viewport()
         self.clock = pygame.time.Clock()
-        self.font_big = pygame.font.SysFont("consolas", 42, bold=True)
-        self.font = pygame.font.SysFont("consolas", 26, bold=True)
-        self.font_small = pygame.font.SysFont("consolas", 18, bold=True)
-        self.font_tiny = pygame.font.SysFont("consolas", 15, bold=True)
+        # Use common system fonts. They stay readable on most Windows machines.
+        self.font_logo = pygame.font.SysFont("georgia", 56, bold=True)
+        self.font_big = pygame.font.SysFont("verdana", 34, bold=True)
+        self.font = pygame.font.SysFont("verdana", 22, bold=True)
+        self.font_small = pygame.font.SysFont("verdana", 15, bold=True)
+        self.font_tiny = pygame.font.SysFont("verdana", 12, bold=True)
         self.selected_difficulty = "normal"
         self.best_score = self.load_best_score()
         self.reset(keep_menu=True)
@@ -525,10 +527,10 @@ class Game:
         self.add_float_text(f"BLAST x{removed}", WIDTH // 2, CENTER_Y, (255, 230, 160))
 
     def difficulty_rects(self):
-        card_w, card_h, gap = 210, 96, 24
+        card_w, card_h, gap = 218, 122, 22
         total_w = card_w * 3 + gap * 2
         start_x = WIDTH // 2 - total_w // 2
-        y = 266
+        y = 240
         return {
             "easy": pygame.Rect(start_x, y, card_w, card_h),
             "normal": pygame.Rect(start_x + card_w + gap, y, card_w, card_h),
@@ -536,17 +538,20 @@ class Game:
         }
 
     def start_button_rect(self):
-        return pygame.Rect(WIDTH // 2 - 150, 392, 300, 52)
+        return pygame.Rect(WIDTH // 2 - 170, 382, 340, 62)
 
     def ability_rects(self):
+        card_w, card_h, gap = 146, 102, 12
+        x = WIDTH // 2 - (card_w * 3 + gap * 2) // 2
+        y = 86
         return {
-            "barrier": pygame.Rect(24, 156, 180, 58),
-            "slow": pygame.Rect(214, 156, 180, 58),
-            "blast": pygame.Rect(404, 156, 180, 58),
+            "barrier": pygame.Rect(x, y, card_w, card_h),
+            "slow": pygame.Rect(x + card_w + gap, y, card_w, card_h),
+            "blast": pygame.Rect(x + (card_w + gap) * 2, y, card_w, card_h),
         }
 
     def pause_button_rect(self):
-        return pygame.Rect(WIDTH - 142, 86, 116, 38)
+        return pygame.Rect(WIDTH - 156, 108, 132, 42)
 
     def pause_menu_rects(self):
         button_w = 280
@@ -579,36 +584,77 @@ class Game:
     def restart_run(self):
         self.reset(keep_menu=False)
 
+    def draw_glow_panel(self, surf, rect, fill=(16, 13, 34), border=(92, 76, 154), accent=None, width=1, radius=10, glow=False):
+        """Reusable crisp fantasy UI panel."""
+        if glow and accent:
+            for grow, alpha_color in ((10, accent), (5, accent)):
+                glow_rect = rect.inflate(grow, grow)
+                pygame.draw.rect(surf, alpha_color, glow_rect, 1, border_radius=radius + 2)
+        pygame.draw.rect(surf, fill, rect, border_radius=radius)
+        pygame.draw.rect(surf, accent or border, rect, width, border_radius=radius)
+
+    def draw_center_text(self, surf, text, font, center, color, shadow=True):
+        if shadow:
+            sh = font.render(text, True, (8, 6, 18))
+            surf.blit(sh, sh.get_rect(center=(center[0] + 2, center[1] + 2)))
+        txt = font.render(text, True, color)
+        surf.blit(txt, txt.get_rect(center=center))
+        return txt.get_rect(center=center)
+
+    def draw_keycap(self, surf, x, y, text, w=36, h=28, accent=(145, 120, 220)):
+        rect = pygame.Rect(x, y, w, h)
+        self.draw_glow_panel(surf, rect, fill=(22, 18, 42), border=(80, 70, 130), accent=accent, width=1, radius=6)
+        self.draw_center_text(surf, text, self.font_small, rect.center, (235, 230, 255), shadow=False)
+        return rect
+
+    def draw_gem(self, surf, center, size, color=(160, 95, 255)):
+        x, y = center
+        points = [(x, y - size), (x + size, y), (x, y + size), (x - size, y)]
+        pygame.draw.polygon(surf, color, points)
+        pygame.draw.polygon(surf, (235, 220, 255), points, 1)
+        pygame.draw.line(surf, (245, 235, 255), (x, y - size + 3), (x + size - 4, y), 1)
+
+    def draw_star_icon(self, surf, center, color=(255, 220, 120), radius=13):
+        x, y = center
+        pts = []
+        for i in range(10):
+            a = -math.pi / 2 + i * math.pi / 5
+            r = radius if i % 2 == 0 else radius * 0.45
+            pts.append((x + math.cos(a) * r, y + math.sin(a) * r))
+        pygame.draw.polygon(surf, color, pts)
+        pygame.draw.polygon(surf, (255, 245, 210), pts, 1)
+
     def draw_panel_button(self, surf, rect, title, subtitle="", selected=False, disabled=False, accent=(145, 120, 220), small=False):
         mouse = self.mouse_world_pos()
         hover = rect.collidepoint(mouse) and not disabled
         tick = pygame.time.get_ticks() * 0.001
-        lift = -4 if hover else 0
+        lift = -3 if hover else 0
         draw_rect = rect.move(0, lift)
 
-        base = (24, 18, 48) if not disabled else (18, 16, 30)
-        border = accent if (hover or selected) else (90, 75, 150)
+        base = (18, 14, 38) if not disabled else (15, 13, 26)
+        border = accent if (hover or selected) else (82, 68, 135)
         if selected:
-            border = (255, 220, 120)
+            border = (255, 220, 105)
         if hover:
-            glow_size = 3 + int(2 * (1 + math.sin(tick * 10)))
-            pygame.draw.rect(surf, border, draw_rect.inflate(glow_size * 4, glow_size * 4), glow_size, border_radius=16)
+            pulse = 3 + int(2 * (1 + math.sin(tick * 8)))
+            pygame.draw.rect(surf, border, draw_rect.inflate(pulse * 3, pulse * 3), 1, border_radius=16)
 
-        pygame.draw.rect(surf, base, draw_rect, border_radius=14)
-        pygame.draw.rect(surf, border, draw_rect, 2 if (hover or selected) else 1, border_radius=14)
+        self.draw_glow_panel(surf, draw_rect, fill=base, border=(70, 60, 120), accent=border, width=2 if (hover or selected) else 1, radius=13)
 
         if selected:
-            tag = self.font_tiny.render("SELECTED", True, (255, 230, 160))
-            surf.blit(tag, tag.get_rect(center=(draw_rect.centerx, draw_rect.y + 16)))
+            tag_rect = pygame.Rect(draw_rect.centerx - 48, draw_rect.y - 1, 96, 24)
+            pygame.draw.rect(surf, (245, 196, 72), tag_rect, border_radius=7)
+            self.draw_center_text(surf, "SELECTED", self.font_tiny, tag_rect.center, (32, 20, 18), shadow=False)
 
         font_title = self.font_small if small else self.font
-        title_surf = font_title.render(title, True, (245, 238, 255) if not disabled else (120, 120, 140))
-        title_y = draw_rect.centery - (10 if subtitle else 0) + (10 if selected else 0)
-        surf.blit(title_surf, title_surf.get_rect(center=(draw_rect.centerx, title_y)))
+        title_col = (250, 246, 255) if not disabled else (125, 122, 145)
+        sub_col = (184, 188, 225) if not disabled else (100, 98, 118)
+        title_y = draw_rect.centery - (10 if subtitle else 0) + (11 if selected else 0)
+        self.draw_center_text(surf, title, font_title, (draw_rect.centerx, title_y), title_col, shadow=True)
 
         if subtitle:
-            sub_surf = self.font_tiny.render(subtitle, True, (185, 190, 225) if not disabled else (100, 100, 120))
-            surf.blit(sub_surf, sub_surf.get_rect(center=(draw_rect.centerx, draw_rect.centery + 26)))
+            sub_surf = self.font_tiny.render(subtitle, True, sub_col)
+            surf.blit(sub_surf, sub_surf.get_rect(center=(draw_rect.centerx, draw_rect.centery + 25)))
         return hover
 
     def handle_mouse(self, event):
@@ -937,143 +983,234 @@ class Game:
                 self.float_texts.remove(txt)
 
     def draw_background(self, surf):
-        surf.fill((12, 10, 28))
+        # Vertical night gradient instead of flat fill.
+        top = (6, 7, 24)
+        bottom = (19, 11, 44)
+        for y in range(HEIGHT):
+            t = y / HEIGHT
+            col = tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3))
+            pygame.draw.line(surf, col, (0, y), (WIDTH, y))
+
         ticks = pygame.time.get_ticks() * 0.001
-        for i in range(90):
-            x = (i * 137) % WIDTH
-            y = (i * 83) % HEIGHT
-            twinkle = 80 + int(60 * math.sin(ticks * 2 + i))
-            surf.set_at((x, y), (twinkle, twinkle, min(255, twinkle + 50)))
-        pygame.draw.line(surf, (55, 45, 95), (0, HEIGHT - 70), (WIDTH, HEIGHT - 70), 2)
-        # Enemy caster silhouette.
-        ex, ey = WIDTH - 110, CENTER_Y + 70
-        pygame.draw.polygon(surf, (65, 30, 80), [(ex - 38, ey + 60), (ex, ey - 70), (ex + 42, ey + 60)])
-        pygame.draw.circle(surf, (120, 70, 135), (ex, ey - 82), 21)
-        pygame.draw.circle(surf, (255, 80, 160), (ex - 7, ey - 84), 3)
-        pygame.draw.circle(surf, (255, 80, 160), (ex + 7, ey - 84), 3)
+        for i in range(120):
+            x = (i * 137 + 17) % WIDTH
+            y = (i * 83 + 29) % (HEIGHT - 75)
+            pulse = 70 + int(80 * (0.5 + 0.5 * math.sin(ticks * 1.4 + i)))
+            color = (pulse, pulse, min(255, pulse + 65))
+            surf.set_at((x, y), color)
+            if i % 17 == 0:
+                pygame.draw.line(surf, color, (x - 2, y), (x + 2, y), 1)
+                pygame.draw.line(surf, color, (x, y - 2), (x, y + 2), 1)
+
+        # Distant skyline.
+        pygame.draw.polygon(surf, (11, 10, 30), [(0, 425), (120, 392), (230, 430), (330, 398), (455, 426), (585, 386), (720, 430), (850, 390), (960, 415), (960, 540), (0, 540)])
+        pygame.draw.rect(surf, (34, 22, 54), (0, HEIGHT - 74, WIDTH, 74))
+        pygame.draw.line(surf, (88, 62, 145), (0, HEIGHT - 74), (WIDTH, HEIGHT - 74), 2)
+        for x in range(0, WIDTH, 48):
+            pygame.draw.rect(surf, (42, 29, 65), (x, HEIGHT - 64, 44, 18), border_radius=3)
+            pygame.draw.rect(surf, (28, 20, 45), (x, HEIGHT - 45, 44, 13), border_radius=2)
+
+        # Enemy caster silhouette and magic ring.
+        ex, ey = WIDTH - 118, CENTER_Y + 82
+        pygame.draw.circle(surf, (74, 38, 95), (ex, ey - 100), 70, 1)
+        pygame.draw.arc(surf, (118, 55, 145), pygame.Rect(ex - 78, ey - 178, 156, 156), -1.0, 2.1, 2)
+        pygame.draw.polygon(surf, (63, 27, 76), [(ex - 42, ey + 48), (ex, ey - 78), (ex + 46, ey + 48)])
+        pygame.draw.circle(surf, (106, 50, 125), (ex, ey - 92), 22)
+        pygame.draw.circle(surf, (255, 82, 165), (ex - 7, ey - 94), 3)
+        pygame.draw.circle(surf, (255, 82, 165), (ex + 7, ey - 94), 3)
+        pygame.draw.line(surf, (120, 58, 122), (ex - 34, ey - 25), (ex - 76, ey - 92), 5)
+        pygame.draw.circle(surf, (244, 84, 196), (ex - 78, ey - 96), 8)
 
     def draw_wizard(self, surf):
-        x, y = PLAYER_X, CENTER_Y + 50
-        pygame.draw.polygon(surf, (80, 60, 160), [(x - 35, y + 70), (x, y - 55), (x + 38, y + 70)])
-        pygame.draw.circle(surf, (240, 220, 190), (x, y - 70), 22)
-        pygame.draw.polygon(surf, (50, 40, 120), [(x - 32, y - 82), (x + 5, y - 130), (x + 34, y - 82)])
-        pygame.draw.line(surf, (180, 140, 80), (x + 32, y - 15), (x + 76, y - 82), 5)
-        pygame.draw.circle(surf, (210, 180, 255), (x + 78, y - 86), 8)
+        x, y = PLAYER_X, CENTER_Y + 78
+        pygame.draw.circle(surf, (62, 45, 135), (x + 4, y - 105), 78, 1)
+        pygame.draw.arc(surf, (92, 70, 186), pygame.Rect(x - 80, y - 184, 160, 160), 1.1, 4.4, 2)
+        pygame.draw.rect(surf, (27, 20, 48), (x - 62, y + 46, 124, 12), border_radius=3)
+        pygame.draw.rect(surf, (38, 26, 62), (x - 56, y + 56, 112, 12), border_radius=2)
+        pygame.draw.polygon(surf, (72, 55, 158), [(x - 42, y + 44), (x, y - 88), (x + 42, y + 44)])
+        pygame.draw.polygon(surf, (92, 75, 190), [(x - 22, y + 44), (x, y - 72), (x + 16, y + 44)])
+        pygame.draw.circle(surf, (234, 215, 190), (x, y - 96), 22)
+        pygame.draw.polygon(surf, (51, 43, 132), [(x - 36, y - 110), (x + 7, y - 168), (x + 34, y - 110)])
+        pygame.draw.line(surf, (195, 154, 88), (x + 34, y - 39), (x + 78, y - 102), 5)
+        pygame.draw.circle(surf, (211, 180, 255), (x + 80, y - 106), 8)
+        pygame.draw.circle(surf, (160, 105, 255), (x + 80, y - 106), 17, 1)
 
         if self.shield_timer > 0:
-            shield_alpha = 100 + int(60 * math.sin(pygame.time.get_ticks() * 0.015))
-            pygame.draw.circle(surf, (120, 190, 255), (x + 10, y - 25), 85, 3)
-            pygame.draw.circle(surf, (shield_alpha, shield_alpha, 255), (x + 10, y - 25), 72, 1)
+            shield_alpha = 120 + int(70 * math.sin(pygame.time.get_ticks() * 0.015))
+            pygame.draw.circle(surf, (120, 190, 255), (x + 6, y - 48), 88, 3)
+            pygame.draw.circle(surf, (shield_alpha, shield_alpha, 255), (x + 6, y - 48), 72, 1)
 
     def draw_bar(self, surf, x, y, w, h, value, max_value, fill_color, label):
         value = max(0, min(max_value, value))
         ratio = value / max_value if max_value else 0
-        pygame.draw.rect(surf, (25, 18, 45), (x, y, w, h), border_radius=6)
-        pygame.draw.rect(surf, fill_color, (x, y, int(w * ratio), h), border_radius=6)
-        pygame.draw.rect(surf, (100, 85, 170), (x, y, w, h), 1, border_radius=6)
-        txt = self.font_tiny.render(f"{label}: {int(value)}/{int(max_value)}", True, (235, 235, 255))
-        surf.blit(txt, (x + 8, y + 2))
+        panel = pygame.Rect(x, y, w, h)
+        self.draw_glow_panel(surf, panel, fill=(18, 14, 36), border=(82, 70, 135), radius=7)
+        label_rect = pygame.Rect(x + 8, y + 7, 52, h - 14)
+        pygame.draw.rect(surf, fill_color, label_rect, border_radius=4)
+        self.draw_center_text(surf, label, self.font_tiny, label_rect.center, (245, 248, 255), shadow=False)
+        bar_rect = pygame.Rect(x + 68, y + 9, w - 78, h - 18)
+        pygame.draw.rect(surf, (9, 8, 22), bar_rect, border_radius=4)
+        pygame.draw.rect(surf, fill_color, (bar_rect.x, bar_rect.y, int(bar_rect.w * ratio), bar_rect.h), border_radius=4)
+        pygame.draw.rect(surf, (135, 125, 190), bar_rect, 1, border_radius=4)
+        txt = self.font_tiny.render(f"{int(value)} / {int(max_value)}", True, (240, 240, 255))
+        surf.blit(txt, txt.get_rect(center=bar_rect.center))
 
     def draw_hud(self, surf):
-        hearts = "♥" * max(0, self.health)
-        hp = self.font.render("HP: " + hearts, True, (255, 120, 150))
-        score = self.font.render(f"SCORE: {self.score}", True, (255, 235, 180))
-        level = self.font.render(f"LVL: {self.level}", True, (180, 220, 255))
-        diff = self.font_small.render(self.settings["label"], True, (180, 230, 255))
-        combo = self.font_small.render(f"COMBO: {self.combo}   BEST: {self.best_combo}", True, (255, 220, 120))
-        best = self.font_tiny.render(f"High score: {self.best_score}", True, (160, 155, 205))
+        # Top-left status cluster.
+        hp_rect = pygame.Rect(14, 14, 244, 38)
+        self.draw_glow_panel(surf, hp_rect, fill=(15, 12, 31), border=(92, 76, 150), radius=8)
+        hp_label = self.font_small.render("HP", True, (235, 226, 255))
+        surf.blit(hp_label, (hp_rect.x + 14, hp_rect.y + 10))
+        for i in range(self.max_health):
+            cx = hp_rect.x + 58 + i * 20
+            col = (255, 104, 150) if i < self.health else (62, 43, 75)
+            self.draw_center_text(surf, "♥", self.font, (cx, hp_rect.y + 20), col, shadow=False)
 
-        surf.blit(hp, (24, 14))
-        surf.blit(score, (24, 47))
-        surf.blit(combo, (24, 79))
-        surf.blit(best, (24, 105))
-        surf.blit(level, (WIDTH - 130, 18))
-        surf.blit(diff, (WIDTH - 130, 50))
+        stats_y = 60
+        stat_w = 78
+        labels = [("SCORE", self.score, (255, 218, 105)), ("COMBO", self.combo, (170, 215, 255)), ("BEST", self.best_combo, (210, 190, 255))]
+        for i, (label, value, accent) in enumerate(labels):
+            r = pygame.Rect(14 + i * (stat_w + 5), stats_y, stat_w, 58)
+            self.draw_glow_panel(surf, r, fill=(15, 12, 31), border=(74, 62, 120), accent=accent, radius=7)
+            self.draw_center_text(surf, label, self.font_tiny, (r.centerx, r.y + 15), accent, shadow=False)
+            self.draw_center_text(surf, str(value), self.font, (r.centerx, r.y + 39), (245, 238, 255), shadow=True)
 
-        self.draw_bar(surf, 24, 128, 225, 20, self.mana, self.mana_cap, (85, 135, 255), "MANA")
+        hs = self.font_tiny.render(f"♛ High Score: {self.best_score}", True, (172, 160, 216))
+        surf.blit(hs, (18, 126))
+        self.draw_bar(surf, 14, 148, 244, 38, self.mana, self.mana_cap, (82, 137, 255), "MANA")
+
+        # Ability cards in the top center.
+        header = self.font_small.render("YOUR ABILITIES", True, (184, 178, 230))
+        surf.blit(header, header.get_rect(center=(WIDTH // 2, 62)))
+        pygame.draw.line(surf, (88, 65, 145), (WIDTH // 2 - 210, 62), (WIDTH // 2 - 92, 62), 1)
+        pygame.draw.line(surf, (88, 65, 145), (WIDTH // 2 + 92, 62), (WIDTH // 2 + 210, 62), 1)
+        self.draw_gem(surf, (WIDTH // 2, 62), 8, (142, 88, 242))
 
         shield_cost = self.ability_cost(35)
         slow_cost = self.ability_cost(45)
         blast_cost = self.ability_cost(70)
-        ability_rects = self.ability_rects()
-        self.draw_panel_button(
-            surf, ability_rects["barrier"], "[1] BARRIER", f"Block hit · {shield_cost} mana",
-            disabled=self.mana < shield_cost, accent=(120, 190, 255), small=True
-        )
-        self.draw_panel_button(
-            surf, ability_rects["slow"], "[2] SLOW TIME", f"Slow spells · {slow_cost} mana",
-            disabled=self.mana < slow_cost, accent=(130, 230, 255), small=True
-        )
-        self.draw_panel_button(
-            surf, ability_rects["blast"], "[3] BLAST", f"Hit spells · {blast_cost} mana",
-            disabled=self.mana < blast_cost, accent=(255, 205, 100), small=True
-        )
-        self.draw_panel_button(surf, self.pause_button_rect(), "Esc Menu", "F1 Help", accent=(170, 145, 210), small=True)
+        ability_data = [
+            ("barrier", "1", "BARRIER", "Block next", "hit spell", shield_cost, (145, 108, 255), "◈"),
+            ("slow", "2", "SLOW TIME", "Slow spells", "for 5 sec", slow_cost, (95, 190, 255), "⌛"),
+            ("blast", "3", "BLAST", "Hit enemy", "spells", blast_cost, (255, 178, 72), "✦"),
+        ]
+        rects = self.ability_rects()
+        for key, hotkey, title, line1, line2, cost, accent, icon in ability_data:
+            rect = rects[key]
+            disabled = self.mana < cost
+            hover = rect.collidepoint(self.mouse_world_pos()) and not disabled
+            border = accent if hover or not disabled else (64, 55, 90)
+            fill = (17, 14, 35) if not disabled else (13, 12, 24)
+            self.draw_glow_panel(surf, rect, fill=fill, border=(72, 60, 115), accent=border, width=2 if hover else 1, radius=10, glow=hover)
+            self.draw_keycap(surf, rect.x + 12, rect.y + 12, hotkey, w=30, h=28, accent=border)
+            self.draw_center_text(surf, title, self.font_tiny, (rect.x + 86, rect.y + 26), (245, 240, 255) if not disabled else (120, 118, 140), shadow=False)
+            self.draw_center_text(surf, icon, self.font_big, (rect.x + 38, rect.y + 63), border if not disabled else (72, 66, 88), shadow=False)
+            dcol = (203, 205, 235) if not disabled else (100, 98, 118)
+            surf.blit(self.font_tiny.render(line1, True, dcol), (rect.x + 70, rect.y + 48))
+            surf.blit(self.font_tiny.render(line2, True, dcol), (rect.x + 70, rect.y + 66))
+            self.draw_center_text(surf, f"{cost} MANA", self.font_tiny, (rect.centerx, rect.bottom - 16), (95, 170, 255) if not disabled else (92, 90, 110), shadow=False)
 
-        controls_hint = self.font_tiny.render(
-            "Type words · 1/2/3 abilities · Esc menu · F1 help",
-            True,
-            (155, 150, 200),
-        )
-        surf.blit(controls_hint, (24, 222))
+        hint = self.font_tiny.render("Type words to cast spells  •  1 / 2 / 3 to use abilities", True, (170, 164, 210))
+        surf.blit(hint, hint.get_rect(center=(WIDTH // 2, 204)))
 
+        # Top-right cluster.
+        lvl_rect = pygame.Rect(WIDTH - 164, 16, 56, 58)
+        diff_rect = pygame.Rect(WIDTH - 98, 16, 84, 58)
+        self.draw_glow_panel(surf, lvl_rect, fill=(15, 12, 31), border=(92, 76, 150), radius=8)
+        self.draw_center_text(surf, "LVL", self.font_tiny, (lvl_rect.centerx, lvl_rect.y + 15), (190, 185, 230), shadow=False)
+        self.draw_center_text(surf, str(self.level), self.font, (lvl_rect.centerx, lvl_rect.y + 39), (245, 238, 255), shadow=True)
+        self.draw_glow_panel(surf, diff_rect, fill=(15, 12, 31), border=(92, 76, 150), radius=8)
+        self.draw_center_text(surf, "MODE", self.font_tiny, (diff_rect.centerx, diff_rect.y + 15), (190, 185, 230), shadow=False)
+        self.draw_center_text(surf, self.settings["label"], self.font_tiny, (diff_rect.centerx, diff_rect.y + 39), (255, 222, 105), shadow=False)
+        self.draw_panel_button(surf, self.pause_button_rect(), "ESC MENU", "F1 HELP", accent=(160, 128, 230), small=True)
+
+        # Active timers.
         timer_parts = []
         if self.shield_timer > 0:
             timer_parts.append(f"Barrier {self.shield_timer:.1f}s")
         if self.slow_timer > 0:
             timer_parts.append(f"Slow {self.slow_timer:.1f}s")
         if timer_parts:
-            timers = self.font_tiny.render(" | ".join(timer_parts), True, (255, 235, 160))
-            surf.blit(timers, (24, 242))
+            timers = self.font_tiny.render("  |  ".join(timer_parts), True, (255, 235, 160))
+            surf.blit(timers, (WIDTH // 2 - timers.get_width() // 2, 222))
 
-        color = (255, 90, 90) if self.wrong_flash > 0 else (230, 230, 255)
-        input_text = self.typed if self.typed else "type spell here..."
-        prompt_color = color if self.typed else (130, 125, 170)
-        prompt = self.font.render("> " + input_text, True, prompt_color)
-        pygame.draw.rect(surf, (20, 16, 42), (22, HEIGHT - 55, WIDTH - 44, 36), border_radius=8)
-        pygame.draw.rect(surf, (95, 80, 170), (22, HEIGHT - 55, WIDTH - 44, 36), 1, border_radius=8)
-        surf.blit(prompt, (34, HEIGHT - 50))
-
+        # Bottom input command bar.
+        input_panel = pygame.Rect(20, HEIGHT - 78, WIDTH - 40, 62)
+        self.draw_glow_panel(surf, input_panel, fill=(13, 10, 31), border=(88, 64, 150), accent=(180, 140, 255), width=2, radius=9)
+        icon_rect = pygame.Rect(input_panel.x + 12, input_panel.y + 10, 42, 42)
+        self.draw_glow_panel(surf, icon_rect, fill=(27, 18, 52), border=(95, 72, 155), accent=(255, 212, 95), radius=7)
+        self.draw_center_text(surf, "✦", self.font, icon_rect.center, (255, 224, 105), shadow=False)
+        boss_rect = pygame.Rect(input_panel.right - 120, input_panel.y + 10, 102, 42)
+        self.draw_glow_panel(surf, boss_rect, fill=(20, 15, 36), border=(95, 72, 155), accent=(255, 212, 95), radius=7)
         kills_to_boss = max(0, self.next_boss_at - self.destroyed)
-        boss_hint = self.font_tiny.render(f"Boss in: {kills_to_boss} spells", True, (170, 145, 210))
-        surf.blit(boss_hint, (WIDTH - 210, HEIGHT - 50))
+        self.draw_center_text(surf, "BOSS IN", self.font_tiny, (boss_rect.centerx, boss_rect.y + 12), (184, 174, 225), shadow=False)
+        self.draw_center_text(surf, f"{kills_to_boss} SPELLS", self.font_tiny, (boss_rect.centerx, boss_rect.y + 29), (245, 238, 255), shadow=False)
+
+        color = (255, 90, 100) if self.wrong_flash > 0 else (240, 238, 255)
+        input_text = self.typed if self.typed else "Type spell here..."
+        prompt_color = color if self.typed else (150, 142, 190)
+        pygame.draw.line(surf, (245, 238, 255), (input_panel.x + 74, input_panel.y + 17), (input_panel.x + 74, input_panel.bottom - 17), 2)
+        prompt = self.font_big.render(input_text, True, prompt_color)
+        surf.blit(prompt, (input_panel.x + 90, input_panel.y + 13))
 
     def draw_menu(self, surf):
-        title = self.font_big.render("WIZARD TYPING DUEL", True, (245, 230, 170))
-        version = self.font_small.render("v0.3.3 Responsive UI Patch", True, (180, 230, 255))
-        subtitle = self.font.render("Type spell words. Spend mana. Survive the duel.", True, (210, 210, 245))
-        surf.blit(title, title.get_rect(center=(WIDTH // 2, 104)))
-        surf.blit(version, version.get_rect(center=(WIDTH // 2, 148)))
-        surf.blit(subtitle, subtitle.get_rect(center=(WIDTH // 2, 198)))
+        # Dark translucent center stage so menu is readable over the scene.
+        pygame.draw.rect(surf, (4, 4, 16), pygame.Rect(0, 0, WIDTH, HEIGHT), 0)
+        self.draw_background(surf)
+        self.draw_wizard(surf)
 
-        label = self.font_small.render("Choose difficulty", True, (180, 230, 255))
-        surf.blit(label, label.get_rect(center=(WIDTH // 2, 244)))
+        self.draw_gem(surf, (WIDTH // 2, 54), 14, (166, 91, 255))
+        pygame.draw.line(surf, (211, 157, 61), (WIDTH // 2 - 135, 54), (WIDTH // 2 - 22, 54), 2)
+        pygame.draw.line(surf, (211, 157, 61), (WIDTH // 2 + 22, 54), (WIDTH // 2 + 135, 54), 2)
+        self.draw_center_text(surf, "WIZARD", self.font_logo, (WIDTH // 2, 104), (255, 225, 126), shadow=True)
+        self.draw_center_text(surf, "TYPING DUEL", self.font_big, (WIDTH // 2, 155), (226, 199, 255), shadow=True)
+        self.draw_center_text(surf, "Type spells. Spend mana. Survive the duel.", self.font_small, (WIDTH // 2, 198), (185, 215, 238), shadow=False)
+
+        pygame.draw.line(surf, (92, 68, 150), (WIDTH // 2 - 225, 222), (WIDTH // 2 - 86, 222), 2)
+        pygame.draw.line(surf, (92, 68, 150), (WIDTH // 2 + 86, 222), (WIDTH // 2 + 225, 222), 2)
+        self.draw_center_text(surf, "CHOOSE DIFFICULTY", self.font_small, (WIDTH // 2, 222), (176, 168, 230), shadow=False)
 
         subtitles = {
-            "easy": "8 HP · calmer spells",
-            "normal": "6 HP · intended balance",
-            "hard": "5 HP · errors can hurt",
+            "easy": ("Calmer spells", "8 HP", (125, 155, 255)),
+            "normal": ("Intended balance", "6 HP", (255, 221, 100)),
+            "hard": ("Errors can hurt", "5 HP", (255, 100, 178)),
         }
         accents = {
-            "easy": (120, 220, 180),
-            "normal": (150, 165, 255),
-            "hard": (255, 120, 150),
+            "easy": (125, 155, 255),
+            "normal": (255, 221, 100),
+            "hard": (255, 100, 178),
         }
         for difficulty, rect in self.difficulty_rects().items():
-            self.draw_panel_button(
-                surf,
-                rect,
-                DIFFICULTIES[difficulty]["label"],
-                subtitles[difficulty],
-                selected=self.selected_difficulty == difficulty,
-                accent=accents[difficulty],
-            )
+            selected = self.selected_difficulty == difficulty
+            accent = accents[difficulty]
+            hover = rect.collidepoint(self.mouse_world_pos())
+            self.draw_glow_panel(surf, rect, fill=(18, 14, 38), border=(82, 68, 135), accent=(255, 220, 105) if selected else accent, width=2 if selected or hover else 1, radius=11, glow=selected or hover)
+            if selected:
+                tag = pygame.Rect(rect.centerx - 50, rect.y - 1, 100, 24)
+                pygame.draw.rect(surf, (246, 197, 74), tag, border_radius=7)
+                self.draw_center_text(surf, "SELECTED", self.font_tiny, tag.center, (36, 22, 18), shadow=False)
+            self.draw_star_icon(surf, (rect.centerx, rect.y + 34), accent, radius=15)
+            self.draw_center_text(surf, DIFFICULTIES[difficulty]["label"], self.font, (rect.centerx, rect.y + 68), (250, 246, 255), shadow=True)
+            self.draw_center_text(surf, subtitles[difficulty][0], self.font_tiny, (rect.centerx, rect.y + 94), (180, 190, 230), shadow=False)
+            pygame.draw.line(surf, (65, 52, 103), (rect.x + 18, rect.y + 102), (rect.right - 18, rect.y + 102), 1)
+            self.draw_center_text(surf, "♥  " + subtitles[difficulty][1], self.font_small, (rect.centerx, rect.y + 114), accent, shadow=False)
 
-        self.draw_panel_button(surf, self.start_button_rect(), "START DUEL", "Space / Enter / Click", accent=(255, 220, 120))
-        tip1 = self.font_small.render("Mouse: menus, upgrades, abilities", True, (150, 145, 190))
-        tip2 = self.font_small.render("Esc: pause · F1: help · F11: fullscreen", True, (150, 145, 190))
-        surf.blit(tip1, tip1.get_rect(center=(WIDTH // 2, 468)))
-        surf.blit(tip2, tip2.get_rect(center=(WIDTH // 2, 492)))
+        start_rect = self.start_button_rect()
+        hover = start_rect.collidepoint(self.mouse_world_pos())
+        self.draw_glow_panel(surf, start_rect, fill=(43, 25, 88), border=(132, 75, 210), accent=(226, 106, 255) if hover else (180, 114, 255), width=3, radius=13, glow=True)
+        self.draw_center_text(surf, "✦  START DUEL", self.font_big, start_rect.center, (252, 246, 255), shadow=True)
+        self.draw_center_text(surf, "Press Space / Enter", self.font_small, (WIDTH // 2, start_rect.bottom + 28), (175, 195, 225), shadow=False)
+
+        footer = pygame.Rect(18, HEIGHT - 58, WIDTH - 36, 42)
+        self.draw_glow_panel(surf, footer, fill=(12, 10, 28), border=(78, 64, 120), radius=8)
+        sections = [("Esc", "Pause / Menu"), ("F1", "Help"), ("F11", "Fullscreen")]
+        x = footer.x + 145
+        for i, (key, label) in enumerate(sections):
+            self.draw_keycap(surf, x, footer.y + 8, key, w=46 if len(key) > 2 else 36, h=26, accent=(116, 95, 170))
+            surf.blit(self.font_small.render(label, True, (190, 184, 220)), (x + 58, footer.y + 11))
+            if i < 2:
+                pygame.draw.line(surf, (74, 60, 108), (x + 190, footer.y + 9), (x + 190, footer.bottom - 9), 1)
+            x += 270
 
     def draw_upgrade(self, surf):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -1237,7 +1374,7 @@ class Game:
         if self.viewport_w == WIDTH and self.viewport_h == HEIGHT:
             scaled_world = world
         else:
-            scaled_world = pygame.transform.smoothscale(world, (self.viewport_w, self.viewport_h))
+            scaled_world = pygame.transform.scale(world, (self.viewport_w, self.viewport_h))
         self.screen.blit(scaled_world, (self.viewport_x, self.viewport_y))
 
         # Thin frame around the scaled game area helps on ultrawide or tall windows.
