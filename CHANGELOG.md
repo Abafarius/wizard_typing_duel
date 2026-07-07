@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.2 — UX & Clarity Patch
+
+### Added
+- Full pause menu with Continue, Restart Run, Main Menu and Quit Game.
+- Esc now opens the in-game pause menu.
+- F1 now opens a Help / Controls overlay.
+- Clear ability descriptions directly in the HUD.
+- Ability buttons now show hotkeys, effect and mana cost.
+- Restart and Main Menu actions are available during pause.
+- Quit Game action is available from pause menu.
+- Input placeholder explains where to type spell words.
+
+### Changed
+- Pause moved from F1 to Esc.
+- F1 is now used only for help.
+- Shortened menu hint text to avoid overflow.
+- Ability UI made larger and more readable.
+- Pause screen redesigned into a proper menu.
+- Bumped version to 0.3.2.
+
+
 ## v0.3.1 — UX Hotfix
 
 ### Added

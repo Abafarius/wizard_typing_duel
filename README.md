@@ -1,76 +1,45 @@
-# Wizard Typing Duel
+# Wizard Typing Duel v0.3.2
 
-Версия: **v0.3.1 — UX Hotfix**
+A tiny old-school pygame typing duel prototype.
 
-Маленькая олдскульная typing-аркада на Python + pygame: печатай слова летящих заклинаний, копи ману, кастуй способности и выбирай улучшения после повышения уровня.
+Type spell words before they reach your wizard. Destroy spells, build combo, gain mana, cast abilities, survive longer, and defeat boss spells.
 
-## Запуск
+## Install
 
 ```powershell
 python -m venv venv
 venv\Scripts\activate
-python -m pip install pygame
+python -m pip install -r requirements.txt
 python wizard_typing_duel.py
 ```
 
-## Управление
+## Controls
 
-### Меню
+### In game
+- Type spell words to destroy incoming spells.
+- `1` — Barrier: blocks the next incoming spell.
+- `2` — Slow Time: slows enemy spells.
+- `3` — Arcane Blast: hits several spells on screen.
+- `Esc` — pause menu.
+- `F1` — help / controls.
+- `Backspace` — delete last typed character.
+- `Enter` — clear input.
 
-- Мышь — выбор сложности и старт
-- `1` — Easy
-- `2` — Normal
-- `3` — Hard
-- `Space` / `Enter` — старт
-- `Esc` — выход
+### Pause menu
+- Continue
+- Restart Run
+- Main Menu
+- Quit Game
 
-### Игра
-
-- Печатай слова над заклинаниями
-- Мышь — нажимать кнопки способностей и паузу
-- `Backspace` — удалить символ
-- `Enter` — очистить ввод
-- `1` — Barrier, блокирует входящий удар
-- `2` — Slow Time, замедляет все заклинания
-- `3` — Arcane Blast, уничтожает несколько ближайших заклинаний
-- `F1` — пауза
+Keyboard shortcuts in pause menu:
+- `Esc`, `Enter`, `Space` — continue
+- `R` — restart run
+- `M` — main menu
+- `Q` — quit game
 
 ### Level Up
+- Click an upgrade card or press `A`, `S`, `D`.
 
-После повышения уровня игра ставится на паузу и предлагает 3 руны:
+## Notes
 
-- Мышь — выбрать руну кликом
-- `A` — первая руна
-- `S` — вторая руна
-- `D` — третья руна
-
-## Что нового в v0.3.1
-
-- Полноценное управление мышкой в меню, апгрейдах, game over и способностях
-- Более явные карточки выбора сложности
-- Hover-анимации и подсветка выбранных элементов
-- Апгрейды теперь можно выбирать кликом
-- Пауза перенесена с `P` на `F1`, чтобы буква `p` не ломала ввод слов
-- Добавлена кнопка паузы в HUD
-
-## Что было добавлено в v0.3.0
-
-- Мана
-- Способности: Barrier, Slow Time, Arcane Blast
-- Система апгрейдов после повышения уровня
-- Новые типы заклинаний: Curse, Mirror, Mana
-- Ошибки теперь ломают комбо, сжигают ману и могут вызвать curse-заклинание
-- Локальный high score в `save_data.json`
-- Больше эффектов и floating text
-
-## Баланс
-
-Главные настройки находятся в начале `wizard_typing_duel.py`:
-
-```python
-DIFFICULTIES = {...}
-SHORT_WORDS = [...]
-MEDIUM_WORDS = [...]
-HARD_WORDS = [...]
-BOSS_PHRASES = [...]
-```
+This is still a prototype. The goal of v0.3.2 is clarity: the player should understand abilities, pause menu, restart, and help without reading the source code.

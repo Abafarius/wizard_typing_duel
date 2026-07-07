@@ -7,14 +7,16 @@ from dataclasses import dataclass
 
 import pygame
 
-# Wizard Typing Duel — v0.3.1 UX Hotfix
+# Wizard Typing Duel — v0.3.2 UX & Clarity Patch
 # Controls:
 # - Menu: 1 = Easy, 2 = Normal, 3 = Hard
 # - Type spell words before they hit the wizard.
 # - Playing: 1 = Barrier, 2 = Slow Time, 3 = Arcane Blast
+# - Esc = pause menu
+# - F1 = help / controls
+# - Pause menu: Continue, Restart, Main Menu, Quit Game
 # - Upgrade screen: A / S / D or mouse click = choose upgrade
-# - Mouse: menus, upgrades, abilities, pause/restart
-# - Backspace = delete input, Enter = clear input, F1 = pause, Esc = quit
+# - Backspace = delete input, Enter = clear input
 
 WIDTH, HEIGHT = 960, 540
 FPS = 60
@@ -222,7 +224,7 @@ class Spell:
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("Wizard Typing Duel v0.3.1")
+        pygame.display.set_caption("Wizard Typing Duel v0.3.2")
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.clock = pygame.time.Clock()
         self.font_big = pygame.font.SysFont("consolas", 42, bold=True)
@@ -273,6 +275,7 @@ class Game:
         self.last_upgrade_level = 1
         self.upgrade_choices = []
         self.pause_message_timer = 0
+        self.show_help = False
 
         self.mana_cap = 100
         self.mana = 25
@@ -491,13 +494,26 @@ class Game:
 
     def ability_rects(self):
         return {
-            "barrier": pygame.Rect(24, 154, 142, 30),
-            "slow": pygame.Rect(174, 154, 142, 30),
-            "blast": pygame.Rect(324, 154, 142, 30),
+            "barrier": pygame.Rect(24, 156, 180, 58),
+            "slow": pygame.Rect(214, 156, 180, 58),
+            "blast": pygame.Rect(404, 156, 180, 58),
         }
 
     def pause_button_rect(self):
-        return pygame.Rect(WIDTH - 126, 86, 100, 28)
+        return pygame.Rect(WIDTH - 142, 86, 116, 38)
+
+    def pause_menu_rects(self):
+        button_w = 280
+        button_h = 46
+        gap = 14
+        x = WIDTH // 2 - button_w // 2
+        start_y = 250
+        return {
+            "continue": pygame.Rect(x, start_y, button_w, button_h),
+            "restart": pygame.Rect(x, start_y + (button_h + gap), button_w, button_h),
+            "menu": pygame.Rect(x, start_y + (button_h + gap) * 2, button_w, button_h),
+            "quit": pygame.Rect(x, start_y + (button_h + gap) * 3, button_w, button_h),
+        }
 
     def resume_button_rect(self):
         return pygame.Rect(WIDTH // 2 - 125, 326, 250, 48)
@@ -513,6 +529,9 @@ class Game:
         start_x = WIDTH // 2 - card_w - 18 - card_w // 2
         y = 214
         return [pygame.Rect(start_x + i * (card_w + 36), y, card_w, card_h) for i in range(3)]
+
+    def restart_run(self):
+        self.reset(keep_menu=False)
 
     def draw_panel_button(self, surf, rect, title, subtitle="", selected=False, disabled=False, accent=(145, 120, 220), small=False):
         mouse = pygame.mouse.get_pos()
@@ -551,6 +570,11 @@ class Game:
             return
         pos = event.pos
 
+        # Click anywhere on the help overlay to close it.
+        if self.show_help:
+            self.show_help = False
+            return
+
         if self.state == "menu":
             for difficulty, rect in self.difficulty_rects().items():
                 if rect.collidepoint(pos):
@@ -575,6 +599,7 @@ class Game:
                 return
             if self.pause_button_rect().collidepoint(pos):
                 self.state = "paused"
+                self.show_help = False
                 return
 
         elif self.state == "upgrade":
@@ -584,9 +609,20 @@ class Game:
                     return
 
         elif self.state == "paused":
-            if self.resume_button_rect().collidepoint(pos):
+            buttons = self.pause_menu_rects()
+            if buttons["continue"].collidepoint(pos):
                 self.state = "playing"
+                self.show_help = False
                 return
+            if buttons["restart"].collidepoint(pos):
+                self.restart_run()
+                return
+            if buttons["menu"].collidepoint(pos):
+                self.reset(keep_menu=True)
+                return
+            if buttons["quit"].collidepoint(pos):
+                pygame.quit()
+                sys.exit()
 
         elif self.state == "gameover":
             if self.gameover_restart_rect().collidepoint(pos):
@@ -597,9 +633,27 @@ class Game:
                 return
 
     def handle_key(self, event):
+        if event.key == pygame.K_F1:
+            self.show_help = not self.show_help
+            return
+
         if event.key == pygame.K_ESCAPE:
-            pygame.quit()
-            sys.exit()
+            if self.show_help:
+                self.show_help = False
+                return
+            if self.state == "playing":
+                self.state = "paused"
+                return
+            if self.state == "paused":
+                self.state = "playing"
+                return
+            if self.state in ("menu", "gameover"):
+                pygame.quit()
+                sys.exit()
+
+        # When help is visible, only F1/Esc should act on the game.
+        if self.show_help:
+            return
 
         if self.state == "menu":
             if event.key == pygame.K_1:
@@ -623,8 +677,15 @@ class Game:
             return
 
         if self.state == "paused":
-            if event.key == pygame.K_F1:
+            if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                 self.state = "playing"
+            elif event.key == pygame.K_r:
+                self.restart_run()
+            elif event.key == pygame.K_m:
+                self.reset(keep_menu=True)
+            elif event.key == pygame.K_q:
+                pygame.quit()
+                sys.exit()
             return
 
         if self.state == "upgrade":
@@ -637,10 +698,6 @@ class Game:
             return
 
         if self.state != "playing":
-            return
-
-        if event.key == pygame.K_F1:
-            self.state = "paused"
             return
 
         # Ability hotkeys. Spell words do not contain digits, so this does not conflict with typing.
@@ -887,10 +944,26 @@ class Game:
         slow_cost = self.ability_cost(45)
         blast_cost = self.ability_cost(70)
         ability_rects = self.ability_rects()
-        self.draw_panel_button(surf, ability_rects["barrier"], f"1 Barrier", f"{shield_cost} mana", disabled=self.mana < shield_cost, accent=(120, 190, 255), small=True)
-        self.draw_panel_button(surf, ability_rects["slow"], f"2 Slow", f"{slow_cost} mana", disabled=self.mana < slow_cost, accent=(130, 230, 255), small=True)
-        self.draw_panel_button(surf, ability_rects["blast"], f"3 Blast", f"{blast_cost} mana", disabled=self.mana < blast_cost, accent=(255, 205, 100), small=True)
-        self.draw_panel_button(surf, self.pause_button_rect(), "F1 Pause", "", accent=(170, 145, 210), small=True)
+        self.draw_panel_button(
+            surf, ability_rects["barrier"], "[1] BARRIER", f"Block hit · {shield_cost} mana",
+            disabled=self.mana < shield_cost, accent=(120, 190, 255), small=True
+        )
+        self.draw_panel_button(
+            surf, ability_rects["slow"], "[2] SLOW TIME", f"Slow spells · {slow_cost} mana",
+            disabled=self.mana < slow_cost, accent=(130, 230, 255), small=True
+        )
+        self.draw_panel_button(
+            surf, ability_rects["blast"], "[3] BLAST", f"Hit spells · {blast_cost} mana",
+            disabled=self.mana < blast_cost, accent=(255, 205, 100), small=True
+        )
+        self.draw_panel_button(surf, self.pause_button_rect(), "Esc Menu", "F1 Help", accent=(170, 145, 210), small=True)
+
+        controls_hint = self.font_tiny.render(
+            "Type words · 1/2/3 abilities · Esc menu · F1 help",
+            True,
+            (155, 150, 200),
+        )
+        surf.blit(controls_hint, (24, 222))
 
         timer_parts = []
         if self.shield_timer > 0:
@@ -899,10 +972,12 @@ class Game:
             timer_parts.append(f"Slow {self.slow_timer:.1f}s")
         if timer_parts:
             timers = self.font_tiny.render(" | ".join(timer_parts), True, (255, 235, 160))
-            surf.blit(timers, (24, 174))
+            surf.blit(timers, (24, 242))
 
         color = (255, 90, 90) if self.wrong_flash > 0 else (230, 230, 255)
-        prompt = self.font.render("> " + self.typed, True, color)
+        input_text = self.typed if self.typed else "type spell here..."
+        prompt_color = color if self.typed else (130, 125, 170)
+        prompt = self.font.render("> " + input_text, True, prompt_color)
         pygame.draw.rect(surf, (20, 16, 42), (22, HEIGHT - 55, WIDTH - 44, 36), border_radius=8)
         pygame.draw.rect(surf, (95, 80, 170), (22, HEIGHT - 55, WIDTH - 44, 36), 1, border_radius=8)
         surf.blit(prompt, (34, HEIGHT - 50))
@@ -913,7 +988,7 @@ class Game:
 
     def draw_menu(self, surf):
         title = self.font_big.render("WIZARD TYPING DUEL", True, (245, 230, 170))
-        version = self.font_small.render("v0.3.1 UX Hotfix", True, (180, 230, 255))
+        version = self.font_small.render("v0.3.2 UX & Clarity Patch", True, (180, 230, 255))
         subtitle = self.font.render("Type spell words. Spend mana. Survive the duel.", True, (210, 210, 245))
         surf.blit(title, title.get_rect(center=(WIDTH // 2, 104)))
         surf.blit(version, version.get_rect(center=(WIDTH // 2, 148)))
@@ -943,8 +1018,10 @@ class Game:
             )
 
         self.draw_panel_button(surf, self.start_button_rect(), "START DUEL", "Space / Enter / Click", accent=(255, 220, 120))
-        tip = self.font_small.render("Mouse works in menus, upgrades and abilities · F1 pauses · P is now safe to type", True, (150, 145, 190))
-        surf.blit(tip, tip.get_rect(center=(WIDTH // 2, 474)))
+        tip1 = self.font_small.render("Mouse: menus, upgrades, abilities", True, (150, 145, 190))
+        tip2 = self.font_small.render("Esc: pause menu · F1: help · 1/2/3: abilities", True, (150, 145, 190))
+        surf.blit(tip1, tip1.get_rect(center=(WIDTH // 2, 468)))
+        surf.blit(tip2, tip2.get_rect(center=(WIDTH // 2, 492)))
 
     def draw_upgrade(self, surf):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -1001,13 +1078,59 @@ class Game:
 
     def draw_pause(self, surf):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((5, 4, 15, 180))
+        overlay.fill((5, 4, 15, 190))
         surf.blit(overlay, (0, 0))
+
         title = self.font_big.render("PAUSED", True, (245, 230, 170))
-        hint = self.font.render("Press F1 or click Continue", True, (180, 230, 255))
-        surf.blit(title, title.get_rect(center=(WIDTH // 2, 220)))
-        surf.blit(hint, hint.get_rect(center=(WIDTH // 2, 285)))
-        self.draw_panel_button(surf, self.resume_button_rect(), "CONTINUE", "F1", accent=(255, 220, 120))
+        subtitle = self.font_small.render("Esc to continue · F1 for controls", True, (180, 230, 255))
+        surf.blit(title, title.get_rect(center=(WIDTH // 2, 172)))
+        surf.blit(subtitle, subtitle.get_rect(center=(WIDTH // 2, 214)))
+
+        buttons = self.pause_menu_rects()
+        self.draw_panel_button(surf, buttons["continue"], "CONTINUE", "Esc / Enter / Click", accent=(120, 220, 180))
+        self.draw_panel_button(surf, buttons["restart"], "RESTART RUN", "R / Click", accent=(255, 220, 120))
+        self.draw_panel_button(surf, buttons["menu"], "MAIN MENU", "M / Click", accent=(180, 160, 255))
+        self.draw_panel_button(surf, buttons["quit"], "QUIT GAME", "Q / Click", accent=(255, 120, 150))
+
+    def draw_help(self, surf):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((5, 4, 15, 225))
+        surf.blit(overlay, (0, 0))
+
+        panel = pygame.Rect(WIDTH // 2 - 330, 70, 660, 410)
+        pygame.draw.rect(surf, (22, 18, 46), panel, border_radius=18)
+        pygame.draw.rect(surf, (150, 125, 230), panel, 2, border_radius=18)
+
+        title = self.font.render("HOW TO PLAY", True, (245, 230, 170))
+        surf.blit(title, title.get_rect(center=(panel.centerx, panel.y + 38)))
+
+        lines = [
+            "Type spell words before they reach your wizard.",
+            "Correct full word = destroy spell and gain mana.",
+            "Wrong input = combo breaks and mana is lost.",
+            "",
+            "Abilities:",
+            "1 - Barrier: blocks the next incoming spell.",
+            "2 - Slow Time: slows enemy spells for a few seconds.",
+            "3 - Arcane Blast: hits several spells on screen.",
+            "",
+            "Controls:",
+            "Esc - pause menu",
+            "F1 - close this help",
+            "Backspace - delete character",
+            "Enter - clear input",
+        ]
+
+        y = panel.y + 82
+        for line in lines:
+            color = (255, 230, 160) if line in ("Abilities:", "Controls:") else (215, 210, 245)
+            font = self.font_small if line in ("Abilities:", "Controls:") else self.font_tiny
+            text = font.render(line, True, color)
+            surf.blit(text, (panel.x + 34, y))
+            y += 25 if line else 14
+
+        close = self.font_small.render("Press F1 / Esc or click to close", True, (180, 230, 255))
+        surf.blit(close, close.get_rect(center=(panel.centerx, panel.bottom - 30)))
 
     def draw_float_texts(self, surf):
         for text, x, y, life, color in self.float_texts:
@@ -1046,6 +1169,9 @@ class Game:
         elif self.state == "gameover":
             self.draw_hud(world)
             self.draw_gameover(world)
+
+        if self.show_help:
+            self.draw_help(world)
 
         self.screen.blit(world, (offset_x, offset_y))
         pygame.display.flip()
