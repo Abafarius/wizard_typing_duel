@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.1 — UX Hotfix
+
+### Added
+- Mouse control for main menu difficulty cards and start button.
+- Mouse control for level-up upgrade cards.
+- Mouse control for ability buttons during gameplay.
+- Mouse control for pause/resume and game over actions.
+- Hover glow, card lift, selected-state animation, and clearer clickable panels.
+- HUD pause button.
+
+### Changed
+- Pause hotkey moved from `P` to `F1`, so typing words with the letter `p` no longer triggers pause.
+- Menu difficulty selection is now more visible.
+- Upgrade choices are now clearer and more animated.
+
+### Status
+UX hotfix over v0.3.0.
+
 ## v0.3.0 — Core Fun Update
 
 ### Added
